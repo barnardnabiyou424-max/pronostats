@@ -193,8 +193,8 @@ async function _fetchMatchsAPI() {
       statut:       'planifie',
       domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
       exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-      forme_dom:    getFormeParNom(e.strHomeTeam),
-      forme_ext:    getFormeParNom(e.strAwayTeam),
+     forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
+forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
       cotes:        null,
       absences:     { domicile: [], exterieur: [] },
     }));

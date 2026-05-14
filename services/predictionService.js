@@ -1,7 +1,7 @@
 // services/predictionService.js
 // Modèle de Poisson + ajustements + détection value bet
 
-const { LEAGUE_AVG_GOALS } = require('./dataService');
+const LEAGUE_AVG_GOALS = 1.35; // fallback uniquement
 
 // ─────────────────────────────────────────────
 // DISTRIBUTION DE POISSON
@@ -170,16 +170,18 @@ function predireMatch(match) {
 
   // 1. Lambdas de base (modèle de Poisson Dixon-Coles simplifié)
   //    lambda = att_equipe × def_adverse / moyenne_ligue
-  const attDom  = forme_dom.moy_buts_dom;
-  const defDom  = forme_dom.moy_buts_enc_dom;
-  const attExt  = forme_ext.moy_buts_ext;
-  const defExt  = forme_ext.moy_buts_enc_ext;
+const attDom = forme_dom.moy_buts_dom;      // buts marqués DOM à domicile
+const defDom = forme_dom.moy_buts_enc_dom;  // buts encaissés DOM à domicile
+const attExt = forme_ext.moy_buts_ext;      // buts marqués EXT à l'extérieur
+const defExt = forme_ext.moy_buts_enc_ext;  // buts encaissés EXT à l'extérieur
 
-  // Moyenne défense/attaque de la ligue
-  const avgL = LEAGUE_AVG_GOALS;
+// Moyenne offensive/défensive de la ligue (contexte domicile/extérieur)
+const avgAttDom = forme_dom.league_avg || LEAGUE_AVG_GOALS;
+const avgAttExt = forme_ext.league_avg || LEAGUE_AVG_GOALS;
 
-  let lambdaDom = (attDom  * defExt) / avgL;
-  let lambdaExt = (attExt  * defDom) / avgL;
+// Dixon-Coles : att_dom × def_ext / avg_ligue
+let lambdaDom = (attDom * defExt) / avgAttDom;
+let lambdaExt = (attExt * defDom) / avgAttExt;
 
   // 2. Avantage domicile (+8%)
   lambdaDom *= 1.08;
