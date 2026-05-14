@@ -164,6 +164,7 @@ async function _fetchMatchsAPI() {
       const d = new Date();
       d.setDate(d.getDate() + i);
       return d.toISOString().split('T')[0];
+      
     });
 
     // Récupérer tous les matchs de foot sur 7 jours
@@ -184,20 +185,21 @@ async function _fetchMatchsAPI() {
         GRANDES_LIGUES.includes(e.idLeague)
       );
 
-    return allMatches.map(e => ({
-      id:           e.idEvent,
-      journee:      e.intRound || '?',
-      domicile_id:  e.idHomeTeam,
-      exterieur_id: e.idAwayTeam,
-     date_match: e.strTimestamp ? e.strTimestamp + 'Z' : null,
-      statut:       'planifie',
-      domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
-      exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-     forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-      cotes:        null,
-      absences:     { domicile: [], exterieur: [] },
-    }));
+return allMatches.map(e => ({
+  id:           e.idEvent,
+  ligue_id:     e.idLeague,        // ← ajouter ici
+  journee:      e.intRound || '?',
+  domicile_id:  e.idHomeTeam,
+  exterieur_id: e.idAwayTeam,
+  date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+  statut:       'planifie',
+  domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
+  exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+  forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
+  forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
+  cotes:        null,
+  absences:     { domicile: [], exterieur: [] },
+}));
   } catch (err) {
     console.error('Erreur TheSportsDB :', err.message);
     return [];

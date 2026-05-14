@@ -76,6 +76,7 @@ cache.predictions[match.id] = {
   exterieur:  match.exterieur?.nom,
   date_match: match.date_match,
   journee:    match.journee,
+  ligue_id:   match.ligue_id,        // ← ajouter
   prediction,
   updatedAt:  new Date().toISOString(),
   changed:    aChange,
