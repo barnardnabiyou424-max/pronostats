@@ -159,16 +159,17 @@ async function getEquipes() {
 
 async function _fetchMatchsAPI() {
   try {
+    const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
+
     // Générer les 7 prochains jours
     const dates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() + i);
       return d.toISOString().split('T')[0];
-      
     });
 
-    // Récupérer tous les matchs de foot sur 7 jours
-    const responses = await Promise.all(
+    // Endpoint 1 : matchs par jour (toutes ligues)
+    const parJour = await Promise.all(
       dates.map(d =>
         axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsday.php', {
           params: { d, s: 'Soccer' }
@@ -176,109 +177,48 @@ async function _fetchMatchsAPI() {
       )
     );
 
-    const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
+    // Endpoint 2 : prochain match par ligue (filet de sécurité)
+    const parLigue = await Promise.all(
+      GRANDES_LIGUES.map(id =>
+        axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php', {
+          params: { id }
+        })
+      )
+    );
 
-    const allMatches = responses
-      .flatMap(res => res.data?.events || [])
+    // Fusionner et dédupliquer par idEvent
+    const tous = [
+      ...parJour.flatMap(r => r.data?.events || []),
+      ...parLigue.flatMap(r => r.data?.events || []),
+    ];
+
+    const dedup = new Map();
+    tous.forEach(e => dedup.set(e.idEvent, e));
+
+    const allMatches = [...dedup.values()]
       .filter(e =>
         e.strStatus === 'Not Started' &&
         GRANDES_LIGUES.includes(e.idLeague)
       );
 
-return allMatches.map(e => ({
-  id:           e.idEvent,
-  ligue_id:     e.idLeague,        // ← ajouter ici
-  journee:      e.intRound || '?',
-  domicile_id:  e.idHomeTeam,
-  exterieur_id: e.idAwayTeam,
-  date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
-  statut:       'planifie',
-  domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
-  exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-  forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-  forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-  cotes:        null,
-  absences:     { domicile: [], exterieur: [] },
-}));
+    return allMatches.map(e => ({
+      id:           e.idEvent,
+      ligue_id:     e.idLeague,
+      journee:      e.intRound || '?',
+      domicile_id:  e.idHomeTeam,
+      exterieur_id: e.idAwayTeam,
+      date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+      statut:       'planifie',
+      domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
+      exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+      forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
+      forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
+      cotes:        null,
+      absences:     { domicile: [], exterieur: [] },
+    }));
   } catch (err) {
     console.error('Erreur TheSportsDB :', err.message);
     return [];
-  }
-}
-
-async function _fetchFormeAPI(equipeId) {
-  try {
-    const res = await apiClient.get('/teams/statistics', {
-      params: { league: 61, season: 2024, team: equipeId },
-    });
-    const s = res.data.response;
-    return {
-      moy_buts_dom:     s.goals.for.average.home,
-      moy_buts_enc_dom: s.goals.against.average.home,
-      moy_buts_ext:     s.goals.for.average.away,
-      moy_buts_enc_ext: s.goals.against.average.away,
-      forme_5m_pts:     null, // calculé côté service
-      elo:              1500, // calculé localement
-      jours_repos:      null,
-    };
-  } catch (err) {
-    console.error('Erreur API-Football stats :', err.message);
-    return null;
-  }
-}
-
-async function _fetchEquipesAPI() {
-  try {
-    const res = await apiClient.get('/teams', {
-      params: { league: 61, season: 2024 },
-    });
-    return res.data.response.map(t => ({
-      id:       t.team.id,
-      api_id:   t.team.id,
-      nom:      t.team.name,
-      pays:     t.team.country,
-      logo_url: t.team.logo,
-    }));
-  } catch (err) {
-    console.error('Erreur API-Football équipes :', err.message);
-    return [];
-  }
-}
-
-async function getFormeRecente(equipeId, nomEquipe) {
-  try {
-    const res = await axios.get(
-      'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
-      { params: { id: equipeId } }
-    );
-
-    const matchs = res.data?.results || [];
-    if (matchs.length === 0) return null;
-
-    const termines = matchs
-      .filter(m => m.strStatus === 'Match Finished')
-      .slice(0, 5);
-
-    if (termines.length === 0) return null;
-
-    let butsMarques = 0, butsEncaisses = 0;
-
-    termines.forEach(m => {
-      const estDomicile = m.idHomeTeam === equipeId;
-      const bm = parseInt(estDomicile ? m.intHomeScore : m.intAwayScore) || 0;
-      const be = parseInt(estDomicile ? m.intAwayScore : m.intHomeScore) || 0;
-      butsMarques   += bm;
-      butsEncaisses += be;
-    });
-
-    return {
-      moy_buts_marques:   butsMarques   / termines.length,
-      moy_buts_encaisses: butsEncaisses / termines.length,
-      nb_matchs:          termines.length,
-    };
-  } catch (err) {
-    console.error(`Erreur forme récente ${nomEquipe} :`, err.message);
-    return null;
   }
 }
 
