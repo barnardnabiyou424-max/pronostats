@@ -221,6 +221,42 @@ async function _fetchMatchsAPI() {
     return [];
   }
 }
+async function getFormeRecente(equipeId, nomEquipe) {
+  try {
+    const res = await axios.get(
+      'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
+      { params: { id: equipeId } }
+    );
+
+    const matchs = res.data?.results || [];
+    if (matchs.length === 0) return null;
+
+    const termines = matchs
+      .filter(m => m.strStatus === 'Match Finished')
+      .slice(0, 5);
+
+    if (termines.length === 0) return null;
+
+    let butsMarques = 0, butsEncaisses = 0;
+
+    termines.forEach(m => {
+      const estDomicile = m.idHomeTeam === equipeId;
+      const bm = parseInt(estDomicile ? m.intHomeScore : m.intAwayScore) || 0;
+      const be = parseInt(estDomicile ? m.intAwayScore : m.intHomeScore) || 0;
+      butsMarques   += bm;
+      butsEncaisses += be;
+    });
+
+    return {
+      moy_buts_marques:   butsMarques   / termines.length,
+      moy_buts_encaisses: butsEncaisses / termines.length,
+      nb_matchs:          termines.length,
+    };
+  } catch (err) {
+    console.error(`Erreur forme récente ${nomEquipe} :`, err.message);
+    return null;
+  }
+}
 
 module.exports = {
   getMatchsAVenir,
