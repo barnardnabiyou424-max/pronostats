@@ -1,6 +1,6 @@
 // services/scheduler.js
 // Rafraîchit les prédictions automatiquement selon un calendrier précis
-
+const { sauvegarderPrediction } = require('./dbService');
 const cron = require('node-cron');
 const { getMatchsAVenir, getFormeRecente } = require('./dataService');
 const { predireMatch }    = require('./predictionService');
@@ -81,6 +81,16 @@ cache.predictions[match.id] = {
   updatedAt:  new Date().toISOString(),
   changed:    aChange,
 };
+// Sauvegarder en base
+sauvegarderPrediction({
+  match_id:   match.id,
+  ligue_id:   match.ligue_id,
+  domicile:   match.domicile?.nom,
+  exterieur:  match.exterieur?.nom,
+  date_match: match.date_match,
+  journee:    match.journee,
+  prediction,
+}).catch(err => console.error('❌ Erreur save prediction :', err.message));
         if (aChange) mises_a_jour++;
       } catch (err) {
         console.error(`  ❌ Erreur match ${match.id} :`, err.message);

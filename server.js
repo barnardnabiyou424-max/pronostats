@@ -53,7 +53,9 @@ const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {
   console.log(`\n🚀 Serveur sur http://localhost:${PORT}`);
   console.log(`📊 Mode : ${process.env.API_FOOTBALL_KEY ? 'API-Football' : 'Données mock'}\n`);
-  demarrerScheduler();
+const { initDB } = require('./services/dbService');
+initDB().catch(err => console.error('❌ Erreur DB init :', err.message));
+demarrerScheduler();
 });
 
 // ── Scheduler → SSE ──────────────────────────
