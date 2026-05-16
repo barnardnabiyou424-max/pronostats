@@ -159,45 +159,66 @@ async function getEquipes() {
 async function _fetchMatchsAPI() {
   try {
     const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    // Récupérer les 25 prochains matchs par ligue directement
+    // Cache local pour ce run — évite les appels dupliqués
+    const formeCache = new Map();
+
+    async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
+      if (formeCache.has(equipeId)) return formeCache.get(equipeId);
+      await sleep(600); // 600ms entre chaque appel
+      const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
+      const resultat = forme || { ...getFormeParNom(nomEquipe), league_avg: leagueAvg };
+      formeCache.set(equipeId, resultat);
+      return resultat;
+    }
+
+    // Récupérer les prochains matchs par ligue
     const parLigue = await Promise.all(
       GRANDES_LIGUES.map(id =>
         axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php', {
           params: { id }
-        })
+        }).catch(() => ({ data: { events: [] } }))
       )
     );
 
-    // Fusionner et dédupliquer
-    const tous = parLigue.flatMap(r => r.data?.events || []);
+    // Pour chaque ligue, récupérer aussi les matchs de la semaine suivante
+    const parLiguePlus = await Promise.all(
+      GRANDES_LIGUES.map(id =>
+        axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsleague.php', {
+          params: { id, s: '2025-2026' }
+        }).catch(() => ({ data: { events: [] } }))
+      )
+    );
+
+    await sleep(1000);
+
+    const tous = [
+      ...parLigue.flatMap(r => r.data?.events || []),
+      ...parLiguePlus.flatMap(r => r.data?.events || []),
+    ];
 
     const dedup = new Map();
     tous.forEach(e => dedup.set(e.idEvent, e));
 
-    // Garder seulement les 7 prochains jours
     const dans7jours = new Date();
     dans7jours.setDate(dans7jours.getDate() + 7);
 
     const allMatches = [...dedup.values()].filter(e => {
+      if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
       if (e.strStatus !== 'Not Started') return false;
-      if (!e.strTimestamp) return true;
+      if (!e.strTimestamp) return false;
       const dateMatch = new Date(e.strTimestamp + 'Z');
       return dateMatch <= dans7jours;
     });
 
     console.log(`📅 ${allMatches.length} matchs trouvés dans les 7 prochains jours`);
 
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
     const matchsAvecForme = [];
-
     for (const e of allMatches) {
       const leagueAvg = getLeagueAvg(parseInt(e.idLeague));
-
-      const [formeDom, formeExt] = await Promise.all([
-        getFormeReelle(e.idHomeTeam, e.strHomeTeam, leagueAvg),
-        getFormeReelle(e.idAwayTeam, e.strAwayTeam, leagueAvg),
-      ]);
+      const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
+      const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
 
       matchsAvecForme.push({
         id:           e.idEvent,
@@ -209,13 +230,11 @@ async function _fetchMatchsAPI() {
         statut:       'planifie',
         domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
         exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-        forme_dom:    formeDom || { ...getFormeParNom(e.strHomeTeam), league_avg: leagueAvg },
-        forme_ext:    formeExt || { ...getFormeParNom(e.strAwayTeam), league_avg: leagueAvg },
+        forme_dom:    formeDom,
+        forme_ext:    formeExt,
         cotes:        null,
         absences:     { domicile: [], exterieur: [] },
       });
-
-      await sleep(500);
     }
 
     return matchsAvecForme;
