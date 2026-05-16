@@ -160,20 +160,18 @@ async function _fetchMatchsAPI() {
   try {
     const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
     const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-    // Cache local pour ce run — évite les appels dupliqués
     const formeCache = new Map();
 
     async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
       if (formeCache.has(equipeId)) return formeCache.get(equipeId);
-      await sleep(600); // 600ms entre chaque appel
+      await sleep(600);
       const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
       const resultat = forme || { ...getFormeParNom(nomEquipe), league_avg: leagueAvg };
       formeCache.set(equipeId, resultat);
       return resultat;
     }
 
-    // Récupérer les prochains matchs par ligue
+    // Un seul endpoint par ligue — retourne jusqu'à 25 prochains matchs
     const parLigue = await Promise.all(
       GRANDES_LIGUES.map(id =>
         axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php', {
@@ -182,37 +180,23 @@ async function _fetchMatchsAPI() {
       )
     );
 
-    // Pour chaque ligue, récupérer aussi les matchs de la semaine suivante
-    const parLiguePlus = await Promise.all(
-      GRANDES_LIGUES.map(id =>
-        axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsleague.php', {
-          params: { id, s: '2025-2026' }
-        }).catch(() => ({ data: { events: [] } }))
-      )
-    );
-
-    await sleep(1000);
-
-    const tous = [
-      ...parLigue.flatMap(r => r.data?.events || []),
-      ...parLiguePlus.flatMap(r => r.data?.events || []),
-    ];
+    const tous = parLigue.flatMap(r => r.data?.events || []);
 
     const dedup = new Map();
     tous.forEach(e => dedup.set(e.idEvent, e));
 
-   const dans14jours = new Date();
-dans14jours.setDate(dans14jours.getDate() + 14);
+    const dans14jours = new Date();
+    dans14jours.setDate(dans14jours.getDate() + 14);
 
-const allMatches = [...dedup.values()].filter(e => {
-  if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
-  if (e.strStatus !== 'Not Started') return false;
-  if (!e.strTimestamp) return false;
-  const dateMatch = new Date(e.strTimestamp + 'Z');
-  return dateMatch <= dans14jours;
-});
+    const allMatches = [...dedup.values()].filter(e => {
+      if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
+      if (e.strStatus !== 'Not Started') return false;
+      if (!e.strTimestamp) return false;
+      const dateMatch = new Date(e.strTimestamp + 'Z');
+      return dateMatch <= dans14jours;
+    });
 
-    console.log(`📅 ${allMatches.length} matchs trouvés dans les 7 prochains jours`);
+    console.log(`📅 ${allMatches.length} matchs trouvés dans les 14 prochains jours`);
 
     const matchsAvecForme = [];
     for (const e of allMatches) {
