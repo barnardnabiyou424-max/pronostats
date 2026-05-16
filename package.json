@@ -1,7 +1,7 @@
 {
   "name": "pronostics-app",
   "version": "1.0.0",
-  "description": "Application de pronostics football avec modèle de Poisson",
+  "description": "Application de pronostics football avec modele de Poisson",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,7 +17,8 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "mysql2": "^3.6.0",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

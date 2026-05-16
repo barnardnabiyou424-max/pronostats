@@ -1,16 +1,13 @@
 // config/db.js
-// config/db.js
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
+const pool = new Pool({
   host:     process.env.DB_HOST,
-  port:     parseInt(process.env.DB_PORT) || 3306,
+  port:     parseInt(process.env.DB_PORT) || 6543,
   user:     process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl:      process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  waitForConnections: true,
-  connectionLimit:    10,
+  ssl:      { rejectUnauthorized: false },
 });
 
 module.exports = pool;
