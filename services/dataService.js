@@ -200,28 +200,43 @@ async function _fetchMatchsAPI() {
         e.strStatus === 'Not Started' &&
         GRANDES_LIGUES.includes(e.idLeague)
       );
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    return allMatches.map(e => ({
-      id:           e.idEvent,
-      ligue_id:     e.idLeague,
-      journee:      e.intRound || '?',
-      domicile_id:  e.idHomeTeam,
-      exterieur_id: e.idAwayTeam,
-      date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
-      statut:       'planifie',
-      domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
-      exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-      forme_dom:    { ...getFormeParNom(e.strHomeTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-      forme_ext:    { ...getFormeParNom(e.strAwayTeam), league_avg: getLeagueAvg(parseInt(e.idLeague)) },
-      cotes:        null,
-      absences:     { domicile: [], exterieur: [] },
-    }));
+    const matchsAvecForme = [];
+    for (const e of allMatches) {
+      const leagueAvg = getLeagueAvg(parseInt(e.idLeague));
+
+      const [formeDom, formeExt] = await Promise.all([
+        getFormeReelle(e.idHomeTeam, e.strHomeTeam, leagueAvg),
+        getFormeReelle(e.idAwayTeam, e.strAwayTeam, leagueAvg),
+      ]);
+
+      matchsAvecForme.push({
+        id:           e.idEvent,
+        ligue_id:     e.idLeague,
+        journee:      e.intRound || '?',
+        domicile_id:  e.idHomeTeam,
+        exterieur_id: e.idAwayTeam,
+        date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+        statut:       'planifie',
+        domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
+        exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+        forme_dom:    formeDom || { ...getFormeParNom(e.strHomeTeam), league_avg: leagueAvg },
+        forme_ext:    formeExt || { ...getFormeParNom(e.strAwayTeam), league_avg: leagueAvg },
+        cotes:        null,
+        absences:     { domicile: [], exterieur: [] },
+      });
+
+      await sleep(200);
+    }
+
+    return matchsAvecForme;
   } catch (err) {
     console.error('Erreur TheSportsDB :', err.message);
     return [];
   }
 }
-async function getFormeRecente(equipeId, nomEquipe) {
+async function getFormeReelle(equipeId, nomEquipe, leagueAvg) {
   try {
     const res = await axios.get(
       'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
@@ -229,31 +244,45 @@ async function getFormeRecente(equipeId, nomEquipe) {
     );
 
     const matchs = res.data?.results || [];
-    if (matchs.length === 0) return null;
+    const termines = matchs.filter(m => m.strStatus === 'Match Finished');
 
-    const termines = matchs
-      .filter(m => m.strStatus === 'Match Finished')
-      .slice(0, 5);
+    if (termines.length < 3) return null; // pas assez de données
 
-    if (termines.length === 0) return null;
+    const domicile = termines.filter(m => m.idHomeTeam === equipeId);
+    const exterieur = termines.filter(m => m.idAwayTeam === equipeId);
 
-    let butsMarques = 0, butsEncaisses = 0;
+    // Calculer moyennes domicile
+    let moy_buts_dom = null, moy_buts_enc_dom = null;
+    if (domicile.length >= 2) {
+      const totalBM = domicile.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0);
+      const totalBE = domicile.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0);
+      moy_buts_dom     = totalBM / domicile.length;
+      moy_buts_enc_dom = totalBE / domicile.length;
+    }
 
-    termines.forEach(m => {
-      const estDomicile = m.idHomeTeam === equipeId;
-      const bm = parseInt(estDomicile ? m.intHomeScore : m.intAwayScore) || 0;
-      const be = parseInt(estDomicile ? m.intAwayScore : m.intHomeScore) || 0;
-      butsMarques   += bm;
-      butsEncaisses += be;
-    });
+    // Calculer moyennes extérieur
+    let moy_buts_ext = null, moy_buts_enc_ext = null;
+    if (exterieur.length >= 2) {
+      const totalBM = exterieur.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0);
+      const totalBE = exterieur.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0);
+      moy_buts_ext     = totalBM / exterieur.length;
+      moy_buts_enc_ext = totalBE / exterieur.length;
+    }
+
+    // Fallback sur teamStats si pas assez de matchs dom ou ext
+    const fallback = getFormeParNom(nomEquipe);
 
     return {
-      moy_buts_marques:   butsMarques   / termines.length,
-      moy_buts_encaisses: butsEncaisses / termines.length,
-      nb_matchs:          termines.length,
+      moy_buts_dom:     moy_buts_dom     ?? fallback.moy_buts_dom,
+      moy_buts_enc_dom: moy_buts_enc_dom ?? fallback.moy_buts_enc_dom,
+      moy_buts_ext:     moy_buts_ext     ?? fallback.moy_buts_ext,
+      moy_buts_enc_ext: moy_buts_enc_ext ?? fallback.moy_buts_enc_ext,
+      elo:              fallback.elo,
+      league_avg:       leagueAvg,
+      source:           'live', // pour debug
     };
   } catch (err) {
-    console.error(`Erreur forme récente ${nomEquipe} :`, err.message);
+    console.error(`Erreur forme réelle ${nomEquipe} :`, err.message);
     return null;
   }
 }
@@ -262,7 +291,7 @@ module.exports = {
   getMatchsAVenir,
   getFormeEquipe: _getFormeEquipeDB,
   getEquipes,
-  getFormeRecente,   // ← ajouter cette ligne
+  getFormeReelle,
   LEAGUE_AVG_GOALS,
   MOCK_EQUIPES,
   MOCK_FORME,
