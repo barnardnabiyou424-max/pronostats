@@ -227,7 +227,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         absences:     { domicile: [], exterieur: [] },
       });
 
-      await sleep(200);
+     await sleep(500);
     }
 
     return matchsAvecForme;
@@ -238,10 +238,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 }
 async function getFormeReelle(equipeId, nomEquipe, leagueAvg) {
   try {
-    const res = await axios.get(
-      'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
-      { params: { id: equipeId } }
-    );
+  const res = await axios.get(
+  'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
+  { params: { id: equipeId }, timeout: 5000 }
+);
 
     const matchs = res.data?.results || [];
     const termines = matchs.filter(m => m.strStatus === 'Match Finished');
