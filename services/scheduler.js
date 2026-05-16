@@ -1,6 +1,6 @@
 // services/scheduler.js
 // Rafraîchit les prédictions automatiquement selon un calendrier précis
-const { sauvegarderPrediction } = require('./dbService');
+const { sauvegarderPrediction, mettreAJourResultats } = require('./dbService');
 const cron = require('node-cron');
 const { getMatchsAVenir, getFormeRecente } = require('./dataService');
 const { predireMatch }    = require('./predictionService');
@@ -31,6 +31,8 @@ async function rafraichirPredictions() {
     let mises_a_jour = 0;
 const matchsATraiter = matchs.slice(0, 5);
 for (const match of matchsATraiter) {
+  // Mettre à jour les vrais scores des matchs terminés
+mettreAJourResultats().catch(err => console.error('❌ Erreur MAJ résultats :', err.message));
       try {
         // Récupérer la forme récente des deux équipes en parallèle
       // Récupérer la forme récente avec délai pour éviter le rate limit

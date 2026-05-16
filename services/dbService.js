@@ -80,5 +80,51 @@ async function getTauxReussite() {
   `);
   return rows[0];
 }
+async function mettreAJourResultats() {
+  // Récupérer les prédictions sans résultat réel dont la date est passée
+  const [rows] = await db.execute(`
+    SELECT id, match_id, score_predit_dom, score_predit_ext
+    FROM predictions_historique
+    WHERE score_reel_dom IS NULL
+      AND date_match < NOW()
+    LIMIT 20
+  `);
 
-module.exports = { initDB, sauvegarderPrediction, getHistorique, getTauxReussite };
+  if (rows.length === 0) return;
+
+  const axios = require('axios');
+
+  for (const row of rows) {
+    try {
+      const res = await axios.get(
+        `https://www.thesportsdb.com/api/v1/json/3/lookupevent.php`,
+        { params: { id: row.match_id } }
+      );
+
+      const event = res.data?.events?.[0];
+      if (!event) continue;
+
+      // Match pas encore terminé
+      if (event.strStatus !== 'Match Finished') continue;
+
+      const scoreRealDom = parseInt(event.intHomeScore);
+      const scoreRealExt = parseInt(event.intAwayScore);
+
+      if (isNaN(scoreRealDom) || isNaN(scoreRealExt)) continue;
+
+      // Comparer score exact prédit vs réel
+      const correct = (scoreRealDom === row.score_predit_dom && scoreRealExt === row.score_predit_ext) ? 1 : 0;
+
+      await db.execute(`
+        UPDATE predictions_historique
+        SET score_reel_dom = ?, score_reel_ext = ?, resultat_correct = ?
+        WHERE id = ?
+      `, [scoreRealDom, scoreRealExt, correct, row.id]);
+
+      console.log(`✅ Score mis à jour : match ${row.match_id} → ${scoreRealDom}-${scoreRealExt} (${correct ? 'correct' : 'raté'})`);
+    } catch (err) {
+      console.error(`❌ Erreur score match ${row.match_id} :`, err.message);
+    }
+  }
+}
+module.exports = { initDB, sauvegarderPrediction, getHistorique, getTauxReussite, mettreAJourResultats };
