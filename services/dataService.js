@@ -201,8 +201,16 @@ async function _fetchMatchsAPI() {
     const dedup = new Map();
     tous.forEach(e => dedup.set(e.idEvent, e));
 
-    const dans7jours = new Date();
-    dans7jours.setDate(dans7jours.getDate() + 7);
+    const dans14jours = new Date();
+dans14jours.setDate(dans14jours.getDate() + 14);
+
+const allMatches = [...dedup.values()].filter(e => {
+  if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
+  if (e.strStatus !== 'Not Started') return false;
+  if (!e.strTimestamp) return false;
+  const dateMatch = new Date(e.strTimestamp + 'Z');
+  return dateMatch <= dans14jours;
+});
 
     const allMatches = [...dedup.values()].filter(e => {
       if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
