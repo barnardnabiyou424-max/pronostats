@@ -156,28 +156,11 @@ async function getEquipes() {
 // APPELS API-FOOTBALL (activés avec la clé)
 // ─────────────────────────────────────────────
 
-
 async function _fetchMatchsAPI() {
   try {
     const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
 
-    // Générer les 7 prochains jours
-    const dates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      return d.toISOString().split('T')[0];
-    });
-
-    // Endpoint 1 : matchs par jour (toutes ligues)
-    const parJour = await Promise.all(
-      dates.map(d =>
-        axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsday.php', {
-          params: { d, s: 'Soccer' }
-        })
-      )
-    );
-
-    // Endpoint 2 : prochain match par ligue (filet de sécurité)
+    // Récupérer les 25 prochains matchs par ligue directement
     const parLigue = await Promise.all(
       GRANDES_LIGUES.map(id =>
         axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php', {
@@ -186,23 +169,28 @@ async function _fetchMatchsAPI() {
       )
     );
 
-    // Fusionner et dédupliquer par idEvent
-    const tous = [
-      ...parJour.flatMap(r => r.data?.events || []),
-      ...parLigue.flatMap(r => r.data?.events || []),
-    ];
+    // Fusionner et dédupliquer
+    const tous = parLigue.flatMap(r => r.data?.events || []);
 
     const dedup = new Map();
     tous.forEach(e => dedup.set(e.idEvent, e));
 
-    const allMatches = [...dedup.values()]
-      .filter(e =>
-        e.strStatus === 'Not Started' &&
-        GRANDES_LIGUES.includes(e.idLeague)
-      );
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+    // Garder seulement les 7 prochains jours
+    const dans7jours = new Date();
+    dans7jours.setDate(dans7jours.getDate() + 7);
 
+    const allMatches = [...dedup.values()].filter(e => {
+      if (e.strStatus !== 'Not Started') return false;
+      if (!e.strTimestamp) return true;
+      const dateMatch = new Date(e.strTimestamp + 'Z');
+      return dateMatch <= dans7jours;
+    });
+
+    console.log(`📅 ${allMatches.length} matchs trouvés dans les 7 prochains jours`);
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
     const matchsAvecForme = [];
+
     for (const e of allMatches) {
       const leagueAvg = getLeagueAvg(parseInt(e.idLeague));
 
@@ -227,10 +215,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         absences:     { domicile: [], exterieur: [] },
       });
 
-     await sleep(500);
+      await sleep(500);
     }
 
     return matchsAvecForme;
+
   } catch (err) {
     console.error('Erreur TheSportsDB :', err.message);
     return [];
