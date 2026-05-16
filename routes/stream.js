@@ -27,5 +27,14 @@ router.post('/refresh', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+const { getHistorique, getTauxReussite } = require('../services/dbService');
 
+router.get('/historique', async (req, res) => {
+  try {
+    const [historique, stats] = await Promise.all([getHistorique(), getTauxReussite()]);
+    res.json({ success: true, historique, stats });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 module.exports = router;
