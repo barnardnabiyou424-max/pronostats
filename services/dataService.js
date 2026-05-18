@@ -179,17 +179,19 @@ async function _fetchMatchsAPI() {
     }
 
     // Récupérer les matchs de chaque ligue
-  const parLigue = await Promise.all(
-  LIGUES.map(l =>
-    axios.get('https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league', {
-      params: { leagueid: l.id },
-      headers: {
-        'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com',
-        'x-rapidapi-key': process.env.API_FOOTBALL_KEY,
-      }
-    }).catch(() => ({ data: { response: { matches: [] } } }))
-  )
-);
+const parLigue = [];
+for (const l of LIGUES) {
+  await sleep(500);
+  const res = await axios.get('https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league', {
+    params: { leagueid: l.id },
+    headers: {
+      'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com',
+      'x-rapidapi-key': process.env.API_FOOTBALL_KEY,
+    }
+  }).catch(() => ({ data: { response: { matches: [] } } }));
+  parLigue.push(res);
+}
+
 
 console.log('API response sample:', JSON.stringify(parLigue[0]?.data).slice(0, 500));
 parLigue.forEach((r, i) => console.log(`${LIGUES[i].nom}: ${r.data?.response?.matches?.length ?? 'undefined'} matchs`));
