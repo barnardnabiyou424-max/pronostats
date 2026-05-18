@@ -158,7 +158,14 @@ async function getEquipes() {
 
 async function _fetchMatchsAPI() {
   try {
-    const GRANDES_LIGUES = ['4334', '4328', '4335', '4332', '4331'];
+    const LIGUES = [
+      { id: 47, nom: 'Premier League', ligueId: '4328' },
+      { id: 87, nom: 'La Liga',        ligueId: '4335' },
+      { id: 54, nom: 'Bundesliga',     ligueId: '4331' },
+      { id: 53, nom: 'Ligue 1',        ligueId: '4334' },
+      { id: 55, nom: 'Serie A',        ligueId: '4332' },
+    ];
+
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const formeCache = new Map();
 
@@ -171,49 +178,66 @@ async function _fetchMatchsAPI() {
       return resultat;
     }
 
-    // Un seul endpoint par ligue — retourne jusqu'à 25 prochains matchs
+    // Récupérer les matchs de chaque ligue
     const parLigue = await Promise.all(
-      GRANDES_LIGUES.map(id =>
-        axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsnextleague.php', {
-          params: { id }
-        }).catch(() => ({ data: { events: [] } }))
+      LIGUES.map(l =>
+        axios.get('https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league', {
+          params: { leagueid: l.id },
+          headers: {
+            'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com',
+            'x-rapidapi-key': process.env.API_FOOTBALL_KEY,
+          }
+        }).catch(() => ({ data: { response: { matches: [] } } }))
       )
     );
-
-    const tous = parLigue.flatMap(r => r.data?.events || []);
-
-    const dedup = new Map();
-    tous.forEach(e => dedup.set(e.idEvent, e));
 
     const dans14jours = new Date();
     dans14jours.setDate(dans14jours.getDate() + 14);
 
-    const allMatches = [...dedup.values()].filter(e => {
-      if (!GRANDES_LIGUES.includes(e.idLeague)) return false;
-      if (e.strStatus !== 'Not Started') return false;
-      if (!e.strTimestamp) return false;
-      const dateMatch = new Date(e.strTimestamp + 'Z');
-      return dateMatch <= dans14jours;
+    const allMatches = [];
+    parLigue.forEach((r, i) => {
+      const ligue = LIGUES[i];
+      const matchs = r.data?.response?.matches || [];
+      matchs.forEach(m => {
+        if (!m.status?.utcTime) return;
+        if (m.status.finished) return;
+        if (m.status.cancelled) return;
+        const dateMatch = new Date(m.status.utcTime);
+        if (dateMatch > dans14jours) return;
+        if (dateMatch < new Date()) return; // exclure matchs passés
+
+        allMatches.push({
+          eventData: m,
+          ligue,
+        });
+      });
     });
 
     console.log(`📅 ${allMatches.length} matchs trouvés dans les 14 prochains jours`);
 
     const matchsAvecForme = [];
-    for (const e of allMatches) {
-      const leagueAvg = getLeagueAvg(parseInt(e.idLeague));
-      const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
-      const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
+    for (const { eventData: e, ligue } of allMatches) {
+      const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
+
+      // IDs équipes — utiliser home.id pour TheSportsDB forme
+      const domId = e.home?.id;
+      const extId = e.away?.id;
+      const domNom = e.home?.name;
+      const extNom = e.away?.name;
+
+      const formeDom = await getFormeAvecCache(domId, domNom, leagueAvg);
+      const formeExt = await getFormeAvecCache(extId, extNom, leagueAvg);
 
       matchsAvecForme.push({
-        id:           e.idEvent,
-        ligue_id:     e.idLeague,
-        journee:      e.intRound || '?',
-        domicile_id:  e.idHomeTeam,
-        exterieur_id: e.idAwayTeam,
-        date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+        id:           e.id,
+        ligue_id:     ligue.ligueId,
+        journee:      e.tournament?.stage || '?',
+        domicile_id:  domId,
+        exterieur_id: extId,
+        date_match:   e.status.utcTime,
         statut:       'planifie',
-        domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
-        exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+        domicile:     { id: domId, nom: domNom, logo_url: null },
+        exterieur:    { id: extId, nom: extNom, logo_url: null },
         forme_dom:    formeDom,
         forme_ext:    formeExt,
         cotes:        null,
@@ -224,44 +248,59 @@ async function _fetchMatchsAPI() {
     return matchsAvecForme;
 
   } catch (err) {
-    console.error('Erreur TheSportsDB :', err.message);
+    console.error('Erreur API Football :', err.message);
     return [];
   }
 }
+// Cache global des IDs TheSportsDB par nom d'équipe
+const theSportsDBIdCache = new Map();
+
+async function getIdTheSportsDB(nomEquipe) {
+  if (theSportsDBIdCache.has(nomEquipe)) return theSportsDBIdCache.get(nomEquipe);
+  try {
+    const res = await axios.get(
+      'https://www.thesportsdb.com/api/v1/json/3/searchteams.php',
+      { params: { t: nomEquipe }, timeout: 5000 }
+    );
+    const team = res.data?.teams?.[0];
+    if (!team) return null;
+    theSportsDBIdCache.set(nomEquipe, team.idTeam);
+    return team.idTeam;
+  } catch {
+    return null;
+  }
+}
+
 async function getFormeReelle(equipeId, nomEquipe, leagueAvg) {
   try {
-  const res = await axios.get(
-  'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
-  { params: { id: equipeId }, timeout: 5000 }
-);
+    // Chercher l'ID TheSportsDB par nom
+    const tsdbId = await getIdTheSportsDB(nomEquipe);
+    if (!tsdbId) return null;
+
+    const res = await axios.get(
+      'https://www.thesportsdb.com/api/v1/json/3/eventslast.php',
+      { params: { id: tsdbId }, timeout: 5000 }
+    );
 
     const matchs = res.data?.results || [];
     const termines = matchs.filter(m => m.strStatus === 'Match Finished');
+    if (termines.length < 3) return null;
 
-    if (termines.length < 3) return null; // pas assez de données
+    const domicile = termines.filter(m => m.idHomeTeam === tsdbId);
+    const exterieur = termines.filter(m => m.idAwayTeam === tsdbId);
 
-    const domicile = termines.filter(m => m.idHomeTeam === equipeId);
-    const exterieur = termines.filter(m => m.idAwayTeam === equipeId);
-
-    // Calculer moyennes domicile
     let moy_buts_dom = null, moy_buts_enc_dom = null;
     if (domicile.length >= 2) {
-      const totalBM = domicile.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0);
-      const totalBE = domicile.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0);
-      moy_buts_dom     = totalBM / domicile.length;
-      moy_buts_enc_dom = totalBE / domicile.length;
+      moy_buts_dom     = domicile.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0) / domicile.length;
+      moy_buts_enc_dom = domicile.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0) / domicile.length;
     }
 
-    // Calculer moyennes extérieur
     let moy_buts_ext = null, moy_buts_enc_ext = null;
     if (exterieur.length >= 2) {
-      const totalBM = exterieur.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0);
-      const totalBE = exterieur.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0);
-      moy_buts_ext     = totalBM / exterieur.length;
-      moy_buts_enc_ext = totalBE / exterieur.length;
+      moy_buts_ext     = exterieur.reduce((s, m) => s + (parseInt(m.intAwayScore) || 0), 0) / exterieur.length;
+      moy_buts_enc_ext = exterieur.reduce((s, m) => s + (parseInt(m.intHomeScore) || 0), 0) / exterieur.length;
     }
 
-    // Fallback sur teamStats si pas assez de matchs dom ou ext
     const fallback = getFormeParNom(nomEquipe);
 
     return {
@@ -271,7 +310,7 @@ async function getFormeReelle(equipeId, nomEquipe, leagueAvg) {
       moy_buts_enc_ext: moy_buts_enc_ext ?? fallback.moy_buts_enc_ext,
       elo:              fallback.elo,
       league_avg:       leagueAvg,
-      source:           'live', // pour debug
+      source:           'live',
     };
   } catch (err) {
     console.error(`Erreur forme réelle ${nomEquipe} :`, err.message);
