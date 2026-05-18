@@ -204,7 +204,10 @@ async function _fetchMatchsAPI() {
         if (m.status.cancelled) return;
         const dateMatch = new Date(m.status.utcTime);
         if (dateMatch > dans14jours) return;
-        if (dateMatch < new Date()) return; // exclure matchs passés
+       const hierMinuit = new Date();
+hierMinuit.setDate(hierMinuit.getDate() - 1);
+hierMinuit.setHours(0, 0, 0, 0);
+if (dateMatch < hierMinuit) return; // exclure matchs passés
 
         allMatches.push({
           eventData: m,
