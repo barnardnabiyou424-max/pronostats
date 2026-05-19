@@ -61,7 +61,7 @@ const LEAGUE_AVG_GOALS = 1.35;
 function apiHeaders() {
   return {
     'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
-    'x-rapidapi-key':  API_KEY,
+    'x-rapidapi-key':  f040ce868emshb39f60d02ad4e7bp15cf16jsn95674becc27e,
   };
 }
 
