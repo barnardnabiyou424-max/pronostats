@@ -158,7 +158,10 @@ async function getEquipes() {
 
 async function _fetchMatchsAPI() {
   try {
-   const LIGUES_ROUNDS = [
+    const sleep = ms => new Promise(r => setTimeout(r, ms)); // ← ajoute cette ligne
+    
+    const LIGUES_ROUNDS = [
+    ...
   { ligueId: '4328', round: 38, nom: 'Premier League' },
   { ligueId: '4335', round: 38, nom: 'La Liga' },
   { ligueId: '4332', round: 38, nom: 'Serie A' },
