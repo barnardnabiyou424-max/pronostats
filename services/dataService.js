@@ -158,102 +158,55 @@ async function getEquipes() {
 
 async function _fetchMatchsAPI() {
   try {
-    const LIGUES = [
-      { id: 47, nom: 'Premier League', ligueId: '4328' },
-      { id: 87, nom: 'La Liga',        ligueId: '4335' },
-      { id: 54, nom: 'Bundesliga',     ligueId: '4331' },
-      { id: 53, nom: 'Ligue 1',        ligueId: '4334' },
-      { id: 55, nom: 'Serie A',        ligueId: '4332' },
-    ];
+   const LIGUES_ROUNDS = [
+  { ligueId: '4328', round: 38, nom: 'Premier League' },
+  { ligueId: '4335', round: 38, nom: 'La Liga' },
+  { ligueId: '4332', round: 38, nom: 'Serie A' },
+];
 
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-    const formeCache = new Map();
-
-    async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
-      if (formeCache.has(equipeId)) return formeCache.get(equipeId);
-      await sleep(600);
-      const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
-      const resultat = forme || { ...getFormeParNom(nomEquipe), league_avg: leagueAvg };
-      formeCache.set(equipeId, resultat);
-      return resultat;
-    }
-
-    // Récupérer les matchs de chaque ligue
 const parLigue = [];
-for (const l of LIGUES) {
+for (const l of LIGUES_ROUNDS) {
   await sleep(500);
-  const res = await axios.get('https://free-api-live-football-data.p.rapidapi.com/football-get-all-matches-by-league', {
-    params: { leagueid: l.id },
-    headers: {
-      'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com',
-      'x-rapidapi-key': process.env.API_FOOTBALL_KEY,
-    }
-  }).catch(() => ({ data: { response: { matches: [] } } }));
-  parLigue.push(res);
+  const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
+    params: { id: l.ligueId, r: l.round, s: '2025-2026' }
+  }).catch(() => ({ data: { events: [] } }));
+  parLigue.push({ events: res.data?.events || [], ligue: l });
 }
 
+const allMatches = [];
+parLigue.forEach(({ events, ligue }) => {
+  events.forEach(e => {
+    if (e.strStatus === 'Match Finished') return;
+    allMatches.push({ e, ligue });
+  });
+});
 
-console.log('API response sample:', JSON.stringify(parLigue[0]?.data).slice(0, 500));
-parLigue.forEach((r, i) => console.log(`${LIGUES[i].nom}: ${r.data?.response?.matches?.length ?? 'undefined'} matchs`));
-   const dans14jours = new Date();
-dans14jours.setDate(dans14jours.getDate() + 60); // 60 jours au lieu de 14
+console.log(`📅 ${allMatches.length} matchs trouvés`);
 
-    const allMatches = [];
-    parLigue.forEach((r, i) => {
-      const ligue = LIGUES[i];
-      const matchs = r.data?.response?.matches || [];
-      matchs.forEach(m => {
-        if (!m.status?.utcTime) return;
-        if (m.status.finished) return;
-        if (m.status.cancelled) return;
-        const dateMatch = new Date(m.status.utcTime);
-        if (dateMatch > dans14jours) return;
-       const hierMinuit = new Date();
-hierMinuit.setDate(hierMinuit.getDate() - 1);
-hierMinuit.setHours(0, 0, 0, 0);
-if (dateMatch < hierMinuit) return; // exclure matchs passés
+const matchsAvecForme = [];
+for (const { e, ligue } of allMatches) {
+  const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
+  const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
+  const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
 
-        allMatches.push({
-          eventData: m,
-          ligue,
-        });
-      });
-    });
+  matchsAvecForme.push({
+    id:           e.idEvent,
+    ligue_id:     ligue.ligueId,
+    journee:      e.intRound || '?',
+    domicile_id:  e.idHomeTeam,
+    exterieur_id: e.idAwayTeam,
+    date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+    statut:       'planifie',
+    domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
+    exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+    forme_dom:    formeDom,
+    forme_ext:    formeExt,
+    cotes:        null,
+    absences:     { domicile: [], exterieur: [] },
+  });
+}
 
-    console.log(`📅 ${allMatches.length} matchs trouvés dans les 14 prochains jours`);
-
-    const matchsAvecForme = [];
-    for (const { eventData: e, ligue } of allMatches) {
-      const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
-
-      // IDs équipes — utiliser home.id pour TheSportsDB forme
-      const domId = e.home?.id;
-      const extId = e.away?.id;
-      const domNom = e.home?.name;
-      const extNom = e.away?.name;
-
-      const formeDom = await getFormeAvecCache(domId, domNom, leagueAvg);
-      const formeExt = await getFormeAvecCache(extId, extNom, leagueAvg);
-
-      matchsAvecForme.push({
-        id:           e.id,
-        ligue_id:     ligue.ligueId,
-        journee:      e.tournament?.stage || '?',
-        domicile_id:  domId,
-        exterieur_id: extId,
-        date_match:   e.status.utcTime,
-        statut:       'planifie',
-        domicile:     { id: domId, nom: domNom, logo_url: null },
-        exterieur:    { id: extId, nom: extNom, logo_url: null },
-        forme_dom:    formeDom,
-        forme_ext:    formeExt,
-        cotes:        null,
-        absences:     { domicile: [], exterieur: [] },
-      });
-    }
-
-    return matchsAvecForme;
-
+return matchsAvecForme;
   } catch (err) {
     console.error('Erreur API Football :', err.message);
     return [];
