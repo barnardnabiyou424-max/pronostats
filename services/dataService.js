@@ -158,62 +158,73 @@ async function getEquipes() {
 
 async function _fetchMatchsAPI() {
   try {
-    const sleep = ms => new Promise(r => setTimeout(r, ms)); // ← ajoute cette ligne
-    
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const formeCache = new Map();
+
+    async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
+      if (formeCache.has(equipeId)) return formeCache.get(equipeId);
+      await sleep(600);
+      const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
+      const resultat = forme || { ...getFormeParNom(nomEquipe), league_avg: leagueAvg };
+      formeCache.set(equipeId, resultat);
+      return resultat;
+    }
+
     const LIGUES_ROUNDS = [
-    ...
-  { ligueId: '4328', round: 38, nom: 'Premier League' },
-  { ligueId: '4335', round: 38, nom: 'La Liga' },
-  { ligueId: '4332', round: 38, nom: 'Serie A' },
-];
+      { ligueId: '4328', round: 38, nom: 'Premier League' },
+      { ligueId: '4335', round: 38, nom: 'La Liga' },
+      { ligueId: '4332', round: 38, nom: 'Serie A' },
+    ];
 
-const parLigue = [];
-for (const l of LIGUES_ROUNDS) {
-  await sleep(500);
-  const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
-    params: { id: l.ligueId, r: l.round, s: '2025-2026' }
-  }).catch(() => ({ data: { events: [] } }));
-  parLigue.push({ events: res.data?.events || [], ligue: l });
-}
+    const parLigue = [];
+    for (const l of LIGUES_ROUNDS) {
+      await sleep(500);
+      const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
+        params: { id: l.ligueId, r: l.round, s: '2025-2026' }
+      }).catch(() => ({ data: { events: [] } }));
+      parLigue.push({ events: res.data?.events || [], ligue: l });
+    }
 
-const allMatches = [];
-parLigue.forEach(({ events, ligue }) => {
-  events.forEach(e => {
-    if (e.strStatus === 'Match Finished') return;
-    allMatches.push({ e, ligue });
-  });
-});
+    const allMatches = [];
+    parLigue.forEach(({ events, ligue }) => {
+      events.forEach(e => {
+        if (e.strStatus === 'Match Finished') return;
+        allMatches.push({ e, ligue });
+      });
+    });
 
-console.log(`📅 ${allMatches.length} matchs trouvés`);
+    console.log(`📅 ${allMatches.length} matchs trouvés`);
 
-const matchsAvecForme = [];
-for (const { e, ligue } of allMatches) {
-  const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
-  const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
-  const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
+    const matchsAvecForme = [];
+    for (const { e, ligue } of allMatches) {
+      const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
+      const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
+      const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
 
-  matchsAvecForme.push({
-    id:           e.idEvent,
-    ligue_id:     ligue.ligueId,
-    journee:      e.intRound || '?',
-    domicile_id:  e.idHomeTeam,
-    exterieur_id: e.idAwayTeam,
-    date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
-    statut:       'planifie',
-    domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
-    exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
-    forme_dom:    formeDom,
-    forme_ext:    formeExt,
-    cotes:        null,
-    absences:     { domicile: [], exterieur: [] },
-  });
-}
+      matchsAvecForme.push({
+        id:           e.idEvent,
+        ligue_id:     ligue.ligueId,
+        journee:      e.intRound || '?',
+        domicile_id:  e.idHomeTeam,
+        exterieur_id: e.idAwayTeam,
+        date_match:   e.strTimestamp ? e.strTimestamp + 'Z' : null,
+        statut:       'planifie',
+        domicile:     { id: e.idHomeTeam, nom: e.strHomeTeam, logo_url: e.strHomeTeamBadge },
+        exterieur:    { id: e.idAwayTeam, nom: e.strAwayTeam, logo_url: e.strAwayTeamBadge },
+        forme_dom:    formeDom,
+        forme_ext:    formeExt,
+        cotes:        null,
+        absences:     { domicile: [], exterieur: [] },
+      });
+    }
 
-return matchsAvecForme;
+    return matchsAvecForme;
+
   } catch (err) {
     console.error('Erreur API Football :', err.message);
     return [];
   }
+
 }
 // Cache global des IDs TheSportsDB par nom d'équipe
 const theSportsDBIdCache = new Map();
