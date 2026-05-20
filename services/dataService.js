@@ -195,8 +195,8 @@ for (const l of LIGUES) {
 
 console.log('API response sample:', JSON.stringify(parLigue[0]?.data).slice(0, 500));
 parLigue.forEach((r, i) => console.log(`${LIGUES[i].nom}: ${r.data?.response?.matches?.length ?? 'undefined'} matchs`));
-    const dans14jours = new Date();
-    dans14jours.setDate(dans14jours.getDate() + 14);
+   const dans14jours = new Date();
+dans14jours.setDate(dans14jours.getDate() + 60); // 60 jours au lieu de 14
 
     const allMatches = [];
     parLigue.forEach((r, i) => {
