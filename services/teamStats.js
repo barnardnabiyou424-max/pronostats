@@ -231,7 +231,7 @@ const DEFAULT_FORME = {
 // Cherche les stats d'une équipe dans toutes les ligues
 // ─────────────────────────────────────────────
 function getFormeEquipe(nomEquipe) {
-  const toutes = { ...LIGUE1, ...PREMIER, ...LALIGA, ...SERIEA, ...BUNDESLIGA };
+  const toutes = { ...LIGUE1, ...PREMIER, ...LALIGA, ...SERIEA, ...BUNDESLIGA, ...WORLD_CUP };
 
   // Recherche exacte
   if (toutes[nomEquipe]) return toutes[nomEquipe];
