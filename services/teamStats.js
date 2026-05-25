@@ -12,6 +12,7 @@ const LEAGUE_AVG = {
   laliga:      1.30,
   seriea:      1.20,
   bundesliga:  1.60,
+  worldcup: 1.35,
 };
 
 // ─────────────────────────────────────────────
@@ -155,7 +156,65 @@ const BUNDESLIGA = {
   'Hamburger SV':        { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.5, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.6, elo: 1530 },
   'Cologne':             { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.7, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.8, elo: 1490 },
 };
+// ─────────────────────────────────────────────
+// FIFA WORLD CUP 2026 — Sélections nationales
+// Sources : FIFA Rankings + stats qualifications 2024-2025
+// ─────────────────────────────────────────────
+const WORLD_CUP = {
+  // ── TOPS FAVORIS ──
+  'France':           { moy_buts_dom: 2.1, moy_buts_enc_dom: 0.8, moy_buts_ext: 1.8, moy_buts_enc_ext: 1.0, elo: 1950 },
+  'Brazil':           { moy_buts_dom: 2.0, moy_buts_enc_dom: 0.7, moy_buts_ext: 1.7, moy_buts_enc_ext: 0.9, elo: 1940 },
+  'England':          { moy_buts_dom: 2.0, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.6, moy_buts_enc_ext: 1.0, elo: 1900 },
+  'Argentina':        { moy_buts_dom: 2.2, moy_buts_enc_dom: 0.8, moy_buts_ext: 1.8, moy_buts_enc_ext: 1.0, elo: 1960 },
+  'Spain':            { moy_buts_dom: 2.1, moy_buts_enc_dom: 0.7, moy_buts_ext: 1.8, moy_buts_enc_ext: 0.9, elo: 1950 },
+  'Germany':          { moy_buts_dom: 2.2, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.8, moy_buts_enc_ext: 1.1, elo: 1890 },
+  'Portugal':         { moy_buts_dom: 2.3, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.9, moy_buts_enc_ext: 1.0, elo: 1880 },
+  'Netherlands':      { moy_buts_dom: 2.0, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.6, moy_buts_enc_ext: 1.1, elo: 1860 },
+  'Belgium':          { moy_buts_dom: 1.9, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.5, moy_buts_enc_ext: 1.1, elo: 1830 },
 
+  // ── NIVEAU 2 ──
+  'Morocco':          { moy_buts_dom: 1.6, moy_buts_enc_dom: 0.7, moy_buts_ext: 1.3, moy_buts_enc_ext: 0.9, elo: 1780 },
+  'Croatia':          { moy_buts_dom: 1.7, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.1, elo: 1760 },
+  'Colombia':         { moy_buts_dom: 1.8, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.1, elo: 1750 },
+  'Uruguay':          { moy_buts_dom: 1.7, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.1, elo: 1750 },
+  'Japan':            { moy_buts_dom: 1.8, moy_buts_enc_dom: 0.8, moy_buts_ext: 1.5, moy_buts_enc_ext: 1.0, elo: 1740 },
+  'USA':              { moy_buts_dom: 1.7, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.2, elo: 1720 },
+  'Mexico':           { moy_buts_dom: 1.8, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.2, elo: 1710 },
+  'Senegal':          { moy_buts_dom: 1.6, moy_buts_enc_dom: 0.9, moy_buts_ext: 1.3, moy_buts_enc_ext: 1.1, elo: 1700 },
+  'Switzerland':      { moy_buts_dom: 1.7, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.1, elo: 1700 },
+  'Austria':          { moy_buts_dom: 1.7, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.2, elo: 1690 },
+  'Turkey':           { moy_buts_dom: 1.7, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.2, elo: 1690 },
+  'Ecuador':          { moy_buts_dom: 1.6, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.3, moy_buts_enc_ext: 1.2, elo: 1670 },
+  'South Korea':      { moy_buts_dom: 1.7, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.4, moy_buts_enc_ext: 1.2, elo: 1670 },
+  'Australia':        { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.3, elo: 1640 },
+  'Norway':           { moy_buts_dom: 2.0, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.6, moy_buts_enc_ext: 1.2, elo: 1680 },
+  'Sweden':           { moy_buts_dom: 1.6, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.3, moy_buts_enc_ext: 1.2, elo: 1650 },
+  'Iran':             { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.0, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.2, elo: 1630 },
+  'Czech Republic':   { moy_buts_dom: 1.6, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.3, moy_buts_enc_ext: 1.3, elo: 1630 },
+
+  // ── NIVEAU 3 ──
+  'Algeria':          { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.2, elo: 1620 },
+  'Ghana':            { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.3, elo: 1600 },
+  'Saudi Arabia':     { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.3, elo: 1580 },
+  'Canada':           { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.3, elo: 1600 },
+  'Ivory Coast':      { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.3, elo: 1600 },
+  'Tunisia':          { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.2, elo: 1580 },
+  'Qatar':            { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.3, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.4, elo: 1560 },
+  'Bosnia-Herzegovina': { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.3, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.4, elo: 1560 },
+  'Paraguay':         { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.3, elo: 1550 },
+  'Scotland':         { moy_buts_dom: 1.5, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.2, moy_buts_enc_ext: 1.3, elo: 1580 },
+  'DR Congo':         { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.3, elo: 1560 },
+  'Egypt':            { moy_buts_dom: 1.4, moy_buts_enc_dom: 1.1, moy_buts_ext: 1.1, moy_buts_enc_ext: 1.2, elo: 1570 },
+  'Panama':           { moy_buts_dom: 1.2, moy_buts_enc_dom: 1.3, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.4, elo: 1530 },
+  'New Zealand':      { moy_buts_dom: 1.2, moy_buts_enc_dom: 1.4, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.5, elo: 1510 },
+  'South Africa':     { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.3, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.4, elo: 1540 },
+  'Jordan':           { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.3, elo: 1530 },
+  'Iraq':             { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.3, elo: 1530 },
+  'Uzbekistan':       { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.3, elo: 1520 },
+  'Cape Verde':       { moy_buts_dom: 1.3, moy_buts_enc_dom: 1.2, moy_buts_ext: 1.0, moy_buts_enc_ext: 1.3, elo: 1520 },
+  'Haiti':            { moy_buts_dom: 1.1, moy_buts_enc_dom: 1.5, moy_buts_ext: 0.9, moy_buts_enc_ext: 1.6, elo: 1470 },
+  'Curaçao':          { moy_buts_dom: 1.0, moy_buts_enc_dom: 1.6, moy_buts_ext: 0.8, moy_buts_enc_ext: 1.7, elo: 1440 },
+};
 // ─────────────────────────────────────────────
 // FORME PAR DÉFAUT (équipe inconnue)
 // ─────────────────────────────────────────────
@@ -195,6 +254,7 @@ function getLeagueAvg(leagueId) {
     4335: LEAGUE_AVG.laliga,     // La Liga
     4332: LEAGUE_AVG.seriea,     // Serie A
     4331: LEAGUE_AVG.bundesliga, // Bundesliga
+    4429: 1.35, // FIFA World Cup
   };
   return map[leagueId] || 1.35;
 }
