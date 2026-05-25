@@ -171,27 +171,29 @@ async function _fetchMatchsAPI() {
     }
 
     const LIGUES_ROUNDS = [
-      { ligueId: '4328', round: 38, nom: 'Premier League' },
-      { ligueId: '4335', round: 38, nom: 'La Liga' },
-      { ligueId: '4332', round: 38, nom: 'Serie A' },
-    ];
+  { ligueId: '4429', round: 1, nom: 'FIFA World Cup', saison: '2026' },
+];
 
     const parLigue = [];
     for (const l of LIGUES_ROUNDS) {
       await sleep(500);
       const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
-        params: { id: l.ligueId, r: l.round, s: '2025-2026' }
+        params: { 
+  id: l.ligueId, 
+  r: l.round, 
+  s: l.saison || '2025-2026'
+}
       }).catch(() => ({ data: { events: [] } }));
       parLigue.push({ events: res.data?.events || [], ligue: l });
     }
 
-    const allMatches = [];
-    parLigue.forEach(({ events, ligue }) => {
-      events.forEach(e => {
-        if (e.strStatus === 'Match Finished') return;
-        allMatches.push({ e, ligue });
-      });
-    });
+   const allMatches = [];
+parLigue.forEach(({ events, ligue }) => {
+  events.forEach(e => {
+    if (e.strStatus === 'Match Finished' || e.strStatus === 'FT') return;
+    allMatches.push({ e, ligue });
+  });
+});
 
     console.log(`📅 ${allMatches.length} matchs trouvés`);
 
