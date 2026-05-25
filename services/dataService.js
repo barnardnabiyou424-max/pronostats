@@ -164,9 +164,11 @@ async function _fetchMatchsAPI() {
   async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
   if (formeCache.has(equipeId)) return formeCache.get(equipeId);
   
-  // Pour la CdM — aller directement dans teamStats (sélections nationales)
   const statsDirectes = getFormeParNom(nomEquipe);
+  console.log(`🔍 ${nomEquipe} → elo:${statsDirectes.elo} buts:${statsDirectes.moy_buts_dom}`);
+  
   const estFallback = statsDirectes.moy_buts_dom === 1.4 && statsDirectes.elo === 1500;
+  // ...reste du code
   
   if (!estFallback) {
     // On a trouvé les stats dans teamStats
