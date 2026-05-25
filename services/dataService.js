@@ -161,15 +161,27 @@ async function _fetchMatchsAPI() {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const formeCache = new Map();
 
-    async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
-      if (formeCache.has(equipeId)) return formeCache.get(equipeId);
-      await sleep(600);
-      const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
-      const resultat = forme || { ...getFormeParNom(nomEquipe), league_avg: leagueAvg };
-      formeCache.set(equipeId, resultat);
-      return resultat;
-    }
+  async function getFormeAvecCache(equipeId, nomEquipe, leagueAvg) {
+  if (formeCache.has(equipeId)) return formeCache.get(equipeId);
+  
+  // Pour la CdM — aller directement dans teamStats (sélections nationales)
+  const statsDirectes = getFormeParNom(nomEquipe);
+  const estFallback = statsDirectes.moy_buts_dom === 1.4 && statsDirectes.elo === 1500;
+  
+  if (!estFallback) {
+    // On a trouvé les stats dans teamStats
+    const resultat = { ...statsDirectes, league_avg: leagueAvg };
+    formeCache.set(equipeId, resultat);
+    return resultat;
+  }
 
+  // Sinon essayer TheSportsDB
+  await sleep(600);
+  const forme = await getFormeReelle(equipeId, nomEquipe, leagueAvg);
+  const resultat = forme || { ...statsDirectes, league_avg: leagueAvg };
+  formeCache.set(equipeId, resultat);
+  return resultat;
+}
     const LIGUES_ROUNDS = [
   { ligueId: '4429', round: 1, nom: 'FIFA World Cup', saison: '2026' },
 ];
