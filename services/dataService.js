@@ -184,8 +184,10 @@ async function _fetchMatchsAPI() {
   formeCache.set(equipeId, resultat);
   return resultat;
 }
-    const LIGUES_ROUNDS = [
+const LIGUES_ROUNDS = [
   { ligueId: '4429', round: 1, nom: 'FIFA World Cup', saison: '2026' },
+  { ligueId: '4429', round: 2, nom: 'FIFA World Cup', saison: '2026' },
+  { ligueId: '4429', round: 3, nom: 'FIFA World Cup', saison: '2026' },
 ];
 
     const parLigue = [];
@@ -201,18 +203,29 @@ async function _fetchMatchsAPI() {
       parLigue.push({ events: res.data?.events || [], ligue: l });
     }
 
-   const allMatches = [];
+  const allMatches = [];
 parLigue.forEach(({ events, ligue }) => {
   events.forEach(e => {
-    if (e.strStatus === 'Match Finished' || e.strStatus === 'FT') return;
+    // Pas encore joué = scores null/vides
+    const pasJoue = (e.intHomeScore === null || e.intHomeScore === '') 
+                  && (e.intAwayScore === null || e.intAwayScore === '');
+    if (!pasJoue) return;
     allMatches.push({ e, ligue });
   });
+});
+
+// Dédupliquer par idEvent
+const vus = new Set();
+const allMatchesUniques = allMatches.filter(({ e }) => {
+  if (vus.has(e.idEvent)) return false;
+  vus.add(e.idEvent);
+  return true;
 });
 
     console.log(`📅 ${allMatches.length} matchs trouvés`);
 
     const matchsAvecForme = [];
-    for (const { e, ligue } of allMatches) {
+    for (const { e, ligue } of allMatchesUniques) {
       const leagueAvg = getLeagueAvg(parseInt(ligue.ligueId));
       const formeDom = await getFormeAvecCache(e.idHomeTeam, e.strHomeTeam, leagueAvg);
       const formeExt = await getFormeAvecCache(e.idAwayTeam, e.strAwayTeam, leagueAvg);
