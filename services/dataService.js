@@ -184,45 +184,36 @@ async function _fetchMatchsAPI() {
   formeCache.set(equipeId, resultat);
   return resultat;
 }
-const LIGUES_ROUNDS = [
-  { ligueId: '4429', round: 1, nom: 'FIFA World Cup', saison: '2026' },
-  { ligueId: '4429', round: 2, nom: 'FIFA World Cup', saison: '2026' },
-  { ligueId: '4429', round: 3, nom: 'FIFA World Cup', saison: '2026' },
-];
+const allMatchesUniques = [];
+const vus = new Set();
 
-    const parLigue = [];
-    for (const l of LIGUES_ROUNDS) {
-      await sleep(500);
-      const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
-        params: { 
-  id: l.ligueId, 
-  r: l.round, 
-  s: l.saison || '2025-2026'
-}
-      }).catch(() => ({ data: { events: [] } }));
-      parLigue.push({ events: res.data?.events || [], ligue: l });
-    }
+// Essaie les rounds 1 à 8 (phase de groupes + 8e de finale)
+for (let round = 1; round <= 8; round++) {
+  await sleep(500);
+  const res = await axios.get('https://www.thesportsdb.com/api/v1/json/3/eventsround.php', {
+    params: { id: '4429', r: round, s: '2026' }
+  }).catch(() => ({ data: { events: [] } }));
 
-  const allMatches = [];
-parLigue.forEach(({ events, ligue }) => {
+  const events = res.data?.events || [];
+  let nouveauxAVenir = 0;
+
   events.forEach(e => {
-    // Pas encore joué = scores null/vides
     const pasJoue = (e.intHomeScore === null || e.intHomeScore === '') 
                   && (e.intAwayScore === null || e.intAwayScore === '');
     if (!pasJoue) return;
-    allMatches.push({ e, ligue });
+    if (vus.has(e.idEvent)) return;
+    vus.add(e.idEvent);
+    allMatchesUniques.push({ e, ligue: { ligueId: '4429' } });
+    nouveauxAVenir++;
   });
-});
 
-// Dédupliquer par idEvent
-const vus = new Set();
-const allMatchesUniques = allMatches.filter(({ e }) => {
-  if (vus.has(e.idEvent)) return false;
-  vus.add(e.idEvent);
-  return true;
-});
+  console.log(`  Round ${round}: ${events.length} matchs, ${nouveauxAVenir} à venir`);
 
-    console.log(`📅 ${allMatches.length} matchs trouvés`);
+  // Si on a déjà 10+ matchs à venir, on arrête (assez pour le dashboard)
+  if (allMatchesUniques.length >= 10) break;
+}
+
+console.log(`📅 ${allMatchesUniques.length} matchs trouvés`);
 
     const matchsAvecForme = [];
     for (const { e, ligue } of allMatchesUniques) {
