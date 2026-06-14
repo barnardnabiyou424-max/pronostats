@@ -103,7 +103,7 @@ async function mettreAJourResultats() {
 
       const event = res.data?.events?.[0];
       if (!event) continue;
-      if (event.strStatus !== 'Match Finished') continue;
+      if (event.strStatus !== 'Match Finished' && event.strStatus !== 'FT') continue;
 
       const scoreRealDom = parseInt(event.intHomeScore);
       const scoreRealExt = parseInt(event.intAwayScore);
